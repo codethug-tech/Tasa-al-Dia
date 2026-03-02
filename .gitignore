@@ -1,0 +1,43 @@
+# /tasa_al_dia/.gitignore
+
+# --- Python / Backend ---
+__pycache__/
+*.py[cod]
+*$py.class
+.env
+.venv
+env/
+venv/
+ENV/
+build/
+dist/
+*.log
+
+# --- Flutter / Frontend ---
+frontend/tasa_al_dia/.dart_tool/
+frontend/tasa_al_dia/.idea/
+frontend/tasa_al_dia/.flutter-plugins
+frontend/tasa_al_dia/.flutter-plugins-dependencies
+frontend/tasa_al_dia/.metadata
+frontend/tasa_al_dia/.packages
+frontend/tasa_al_dia/build/
+frontend/tasa_al_dia/linux/flutter/ephemeral/
+frontend/tasa_al_dia/windows/flutter/ephemeral/
+frontend/tasa_al_dia/macos/Flutter/ephemeral/
+frontend/tasa_al_dia/ios/Flutter/Generated.xcconfig
+frontend/tasa_al_dia/ios/Flutter/flutter_export_environment.sh
+frontend/tasa_al_dia/ios/Flutter/App.framework
+frontend/tasa_al_dia/ios/Flutter/Flutter.framework
+frontend/tasa_al_dia/ios/Flutter/GeneratedPluginRegistrant.h
+frontend/tasa_al_dia/ios/Flutter/GeneratedPluginRegistrant.m
+frontend/tasa_al_dia/android/local.properties
+frontend/tasa_al_dia/android/app/debug.keystore
+frontend/tasa_al_dia/android/app/profile.keystore
+frontend/tasa_al_dia/android/app/release.keystore
+
+# --- System / IDE ---
+.DS_Store
+.vscode/
+*.swp
+*.swo
+.idea/
