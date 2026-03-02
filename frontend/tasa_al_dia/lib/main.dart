@@ -19,10 +19,10 @@ class TasaAlDiaApp extends StatelessWidget {
       theme: ThemeData(
         useMaterial3: true,
         colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF2D5BFF), // Electric Blue from Stitch
+          seedColor: const Color(0xFF2D5BFF),
           primary: const Color(0xFF2D5BFF),
-          secondary: const Color(0xFF00C853), // Emerald Green
-          surface: const Color(0xFFF4F7FA), // Soft Slate Background
+          secondary: const Color(0xFF00C853),
+          surface: const Color(0xFFF4F7FA),
         ),
         textTheme: GoogleFonts.plusJakartaSansTextTheme(),
         scaffoldBackgroundColor: const Color(0xFFF4F7FA),
@@ -344,8 +344,14 @@ class ConverterDashboard extends StatefulWidget {
 class _ConverterDashboardState extends State<ConverterDashboard> {
   final TextEditingController _usdController = TextEditingController();
   final TextEditingController _vesController = TextEditingController();
+  
+  // Vuelto specific controllers
+  final TextEditingController _totalUsdController = TextEditingController();
+  final TextEditingController _billUsdController = TextEditingController();
+  
   String? _selectedKey;
   bool _isUpdating = false;
+  int _converterType = 0; // 0 for Calculator, 1 for Vuelto
 
   @override
   void initState() {
@@ -371,6 +377,18 @@ class _ConverterDashboardState extends State<ConverterDashboard> {
     _isUpdating = false;
   }
 
+  double? _calculateVuelto() {
+    if (_selectedKey == null) return null;
+    final double? total = double.tryParse(_totalUsdController.text);
+    final double? bill = double.tryParse(_billUsdController.text);
+    final double rate = double.parse(widget.rates[_selectedKey]['rate'].toString());
+
+    if (total != null && bill != null && bill >= total) {
+      return (bill - total) * rate;
+    }
+    return null;
+  }
+
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
@@ -378,14 +396,32 @@ class _ConverterDashboardState extends State<ConverterDashboard> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text("Calculadora", style: GoogleFonts.plusJakartaSans(fontSize: 28, fontWeight: FontWeight.w800)),
-          const Text("Conversión instantánea", style: TextStyle(color: Colors.grey)),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(_converterType == 0 ? "Calculadora" : "Vuelto", style: GoogleFonts.plusJakartaSans(fontSize: 28, fontWeight: FontWeight.w800)),
+                  Text(_converterType == 0 ? "Conversión instantánea" : "Calcula el cambio en Bs.", style: const TextStyle(color: Colors.grey)),
+                ],
+              ),
+              SegmentedButton<int>(
+                segments: const [
+                  ButtonSegment(value: 0, icon: Icon(Icons.sync_alt, size: 16)),
+                  ButtonSegment(value: 1, icon: Icon(Icons.payments_outlined, size: 16)),
+                ],
+                selected: {_converterType},
+                onSelectionChanged: (set) => setState(() => _converterType = set.first),
+                showSelectedIcon: false,
+                style: const ButtonStyle(visualDensity: VisualDensity.compact),
+              ),
+            ],
+          ),
           const SizedBox(height: 32),
           
-          _buildInputGroup("Monto en Dólares", "USD", _usdController, true),
-          const SizedBox(height: 24),
-          _buildInputGroup("Monto en Bolívares", "VES", _vesController, false),
-          
+          if (_converterType == 0) _buildStandardConverter() else _buildVueltoCalculator(),
+
           const SizedBox(height: 32),
           Text("Tasa de Referencia", style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w700)),
           const SizedBox(height: 12),
@@ -401,15 +437,75 @@ class _ConverterDashboardState extends State<ConverterDashboard> {
               ),
             ),
           ),
-          
-          const SizedBox(height: 32),
-          _buildQuickActions(),
         ],
       ),
     );
   }
 
-  Widget _buildInputGroup(String label, String currency, TextEditingController controller, bool isUsd) {
+  Widget _buildStandardConverter() {
+    return Column(
+      children: [
+        _buildInputGroup("Monto en Dólares", "USD", _usdController, true),
+        const SizedBox(height: 24),
+        _buildInputGroup("Monto en Bolívares", "VES", _vesController, false),
+        const SizedBox(height: 32),
+        _buildQuickActions(),
+      ],
+    );
+  }
+
+  Widget _buildVueltoCalculator() {
+    final double? vuelto = _calculateVuelto();
+    return Column(
+      children: [
+        _buildInputGroup("Total de la Compra", "USD", _totalUsdController, true, onUpdate: (_) => setState(() {})),
+        const SizedBox(height: 16),
+        _buildInputGroup("¿Con cuánto pagas?", "USD", _billUsdController, true, onUpdate: (_) => setState(() {})),
+        const SizedBox(height: 24),
+        if (vuelto != null)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(colors: [Color(0xFF00C853), Color(0xFF64DD17)]),
+              borderRadius: BorderRadius.circular(24),
+              boxShadow: [BoxShadow(color: const Color(0xFF00C853).withOpacity(0.3), blurRadius: 15, offset: const Offset(0, 8))],
+            ),
+            child: Column(
+              children: [
+                const Text("EL CAMBIO EN BOLÍVARES ES:", style: TextStyle(color: Colors.white70, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1)),
+                const SizedBox(height: 8),
+                Text(
+                  "Bs. ${vuelto.toStringAsFixed(2)}",
+                  style: GoogleFonts.plusJakartaSans(color: Colors.white, fontSize: 36, fontWeight: FontWeight.w900),
+                ),
+                Text(
+                  "Diferencia: \$${(double.parse(_billUsdController.text) - double.parse(_totalUsdController.text)).toStringAsFixed(2)} USD",
+                  style: const TextStyle(color: Colors.white60, fontSize: 12),
+                ),
+                const SizedBox(height: 16),
+                IconButton.filled(
+                  onPressed: () {
+                    Clipboard.setData(ClipboardData(text: vuelto.toStringAsFixed(2)));
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Monto del vuelto copiado")));
+                  },
+                  icon: const Icon(Icons.copy_all_rounded, color: Color(0xFF00C853)),
+                  style: IconButton.styleFrom(backgroundColor: Colors.white),
+                ),
+              ],
+            ),
+          )
+        else
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(color: Colors.black.withOpacity(0.02), borderRadius: BorderRadius.circular(24), border: Border.all(color: Colors.black12, style: BorderStyle.dashed)),
+            child: const Center(child: Text("Ingresa los montos para calcular el cambio", style: TextStyle(color: Colors.grey, fontSize: 12))),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildInputGroup(String label, String currency, TextEditingController controller, bool isUsd, {Function(String)? onUpdate}) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(24), border: Border.all(color: Colors.black.withOpacity(0.05))),
@@ -425,8 +521,10 @@ class _ConverterDashboardState extends State<ConverterDashboard> {
               Expanded(
                 child: TextField(
                   controller: controller,
-                  keyboardType: TextInputType.number,
-                  onChanged: (v) => _convert(v, isUsd),
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  onChanged: (v) {
+                    if (onUpdate != null) onUpdate(v); else _convert(v, isUsd);
+                  },
                   style: GoogleFonts.plusJakartaSans(fontSize: 32, fontWeight: FontWeight.w800),
                   decoration: const InputDecoration(hintText: "0.00", border: InputBorder.none, contentPadding: EdgeInsets.zero),
                 ),
@@ -439,9 +537,10 @@ class _ConverterDashboardState extends State<ConverterDashboard> {
   }
 
   Widget _buildQuickActions() {
+    final amounts = [1, 5, 10, 20, 50, 100];
     return Wrap(
       spacing: 10,
-      children: [1, 5, 10, 20, 50, 100].map((a) => ActionChip(
+      children: amounts.map((a) => ActionChip(
         label: Text("\$$a", style: const TextStyle(fontWeight: FontWeight.bold)),
         onPressed: () { _usdController.text = a.toString(); _convert(a.toString(), true); },
         backgroundColor: Colors.white,
