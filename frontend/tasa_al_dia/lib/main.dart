@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'services/api_service.dart';
 
 void main() {
@@ -107,6 +108,7 @@ class _MainContainerState extends State<MainContainer> {
               error: _error,
             ),
             ConverterDashboard(rates: _ratesData),
+            const ProfileScreen(),
           ],
         ),
       ),
@@ -123,6 +125,11 @@ class _MainContainerState extends State<MainContainer> {
             icon: Icon(Icons.calculate_outlined, color: Colors.grey),
             selectedIcon: Icon(Icons.calculate_rounded, color: Color(0xFF2D5BFF)),
             label: 'Convertir',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.person_outline, color: Colors.grey),
+            selectedIcon: Icon(Icons.person, color: Color(0xFF2D5BFF)),
+            label: 'Mi Perfil',
           ),
         ],
       ),
@@ -345,13 +352,12 @@ class _ConverterDashboardState extends State<ConverterDashboard> {
   final TextEditingController _usdController = TextEditingController();
   final TextEditingController _vesController = TextEditingController();
   
-  // Vuelto specific controllers
   final TextEditingController _totalUsdController = TextEditingController();
   final TextEditingController _billUsdController = TextEditingController();
   
   String? _selectedKey;
   bool _isUpdating = false;
-  int _converterType = 0; // 0 for Calculator, 1 for Vuelto
+  int _converterType = 0;
 
   @override
   void initState() {
@@ -547,6 +553,154 @@ class _ConverterDashboardState extends State<ConverterDashboard> {
         side: BorderSide(color: const Color(0xFF2D5BFF).withOpacity(0.1)),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       )).toList(),
+    );
+  }
+}
+
+class ProfileScreen extends StatefulWidget {
+  const ProfileScreen({super.key});
+
+  @override
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> {
+  final TextEditingController _phoneController = TextEditingController();
+  final TextEditingController _cedulaController = TextEditingController();
+  final TextEditingController _bankController = TextEditingController();
+  bool _isEditing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _phoneController.text = prefs.getString('phone') ?? '';
+      _cedulaController.text = prefs.getString('cedula') ?? '';
+      _bankController.text = prefs.getString('bank') ?? '';
+    });
+  }
+
+  Future<void> _saveData() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('phone', _phoneController.text);
+    await prefs.setString('cedula', _cedulaController.text);
+    await prefs.setString('bank', _bankController.text);
+    setState(() => _isEditing = false);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Datos guardados correctamente")));
+    }
+  }
+
+  void _copyDetails() {
+    if (_phoneController.text.isEmpty) return;
+    final data = "Mis datos de Pago Móvil:\nTeléfono: ${_phoneController.text}\nCédula: ${_cedulaController.text}\nBanco: ${_bankController.text}";
+    Clipboard.setData(ClipboardData(text: data));
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Datos copiados al portapapeles")));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text("Mi Perfil", style: GoogleFonts.plusJakartaSans(fontSize: 28, fontWeight: FontWeight.w800)),
+          const Text("Guarda tus datos de Pago Móvil", style: TextStyle(color: Colors.grey)),
+          const SizedBox(height: 32),
+          
+          _buildInfoField("Cédula / ID", _cedulaController, Icons.badge_outlined),
+          const SizedBox(height: 16),
+          _buildInfoField("Número de Teléfono", _phoneController, Icons.phone_android),
+          const SizedBox(height: 16),
+          _buildInfoField("Banco", _bankController, Icons.account_balance_outlined),
+          
+          const SizedBox(height: 32),
+          
+          if (_isEditing)
+            Row(
+              children: [
+                Expanded(child: OutlinedButton(onPressed: () => setState(() => _isEditing = false), child: const Text("Cancelar"))),
+                const SizedBox(width: 16),
+                Expanded(child: FilledButton(onPressed: _saveData, child: const Text("Guardar"))),
+              ],
+            )
+          else
+            Column(
+              children: [
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    onPressed: _copyDetails,
+                    icon: const Icon(Icons.copy_all_rounded),
+                    label: const Text("Copiar Datos Completos"),
+                    style: FilledButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      backgroundColor: const Color(0xFF00C853),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextButton.icon(
+                  onPressed: () => setState(() => _isEditing = true),
+                  icon: const Icon(Icons.edit_outlined),
+                  label: const Text("Editar Información"),
+                ),
+              ],
+            ),
+          
+          const SizedBox(height: 40),
+          _buildInstructions(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInfoField(String label, TextEditingController controller, IconData icon) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20), border: Border.all(color: Colors.black.withOpacity(0.05))),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.blueGrey)),
+          const SizedBox(height: 4),
+          TextField(
+            controller: controller,
+            enabled: _isEditing,
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+            decoration: InputDecoration(
+              icon: Icon(icon, color: const Color(0xFF2D5BFF)),
+              border: InputBorder.none,
+              hintText: "Sin configurar",
+              hintStyle: const TextStyle(fontWeight: FontWeight.normal, color: Colors.grey),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInstructions() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(color: const Color(0xFF2D5BFF).withOpacity(0.05), borderRadius: BorderRadius.circular(20)),
+      child: Column(
+        children: [
+          const Icon(Icons.info_outline, color: Color(0xFF2D5BFF)),
+          const SizedBox(height: 8),
+          const Text(
+            "Estos datos se guardan localmente en tu teléfono. Úsalos para compartirlos rápidamente cuando alguien te pida tus datos de Pago Móvil.",
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 12, color: Colors.blueGrey),
+          ),
+        ],
+      ),
     );
   }
 }
